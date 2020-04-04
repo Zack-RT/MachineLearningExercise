@@ -11,7 +11,7 @@ function [J grad] = nnCostFunction(nn_params, ...
 %   nn_params and need to be converted back into the weight matrices. 
 % 
 %   The returned parameter grad should be a "unrolled" vector of the
-%   partial derivatives of the neural network.
+%    of the neural network.
 %
 
 % Reshape nn_params back into the parameters Theta1 and Theta2, the weight matrices
@@ -22,9 +22,10 @@ Theta1 = reshape(nn_params(1:hidden_layer_size * (input_layer_size + 1)), ...
 Theta2 = reshape(nn_params((1 + (hidden_layer_size * (input_layer_size + 1))):end), ...
                  num_labels, (hidden_layer_size + 1));
 
-% Setup some useful variables
+% Setup some useful variables 
 m = size(X, 1);
-         
+% size(X) = [train_sample_size, train_data_size]
+
 % You need to return the following variables correctly 
 J = 0;
 Theta1_grad = zeros(size(Theta1));
@@ -61,24 +62,50 @@ Theta2_grad = zeros(size(Theta2));
 %               the regularization separately and then add them to Theta1_grad
 %               and Theta2_grad from Part 2.
 %
+%-------------- cost computation -------------------
+X_bias = [ones(m, 1), X]; 
+% size(X_bias) = [train_sample_size, train_data_size+1]
+% size(Theta1) = [hidden_layer_size, input_layer_size+1]
+z2 = Theta1 * X_bias';
+a2 = sigmoid(z2);
+% size(a2) = [hidden_layer_size, train_sample_size]
 
+a2_bias = [ones(1, m); a2];
+% size(a2_bias) = [hidden_layer_size+1, train_sample_size]
+% size(Theta2) = [num_labels, hidden_layer_size+1]
+z3 = Theta2 * a2_bias;
+a3 = sigmoid(z3);
+% size(a3) = [num_labels, train_sample_size]
 
+% recode the label
+Y = zeros(num_labels, m);
+for i = 1:m 
+    Y(y(i),i) = 1;
+endfor
+% size(Y) = [num_labels, train_sample_size]
+J = sum(sum(-Y .* log(a3) - (1-Y) .* log(1-a3))) / m + ...
+    lambda/2/m * (sum(sum(Theta1(:,2:end).^2)) + sum(sum(Theta2(:,2:end).^2)));
 
+%----------- gradient computation -----------------
+delta3 = a3 - Y;
+% size(delta3) = [num_labels, train_sample_size]
+% remove the colunm corresponding to the bias term
+delta2 = Theta2(:,2:end)' * delta3 .* sigmoidGradient(z2);
+% size(delta2) = [hidden_layer_size, train_sample_size]
 
+for i = 1:m
+    Theta2_grad = delta3(:,i) * a2_bias(:,i)' + Theta2_grad;
+endfor
+Theta2_grad(:,1) = Theta2_grad(:,1) / m;
+Theta2_grad(:,2:end) = Theta2_grad(:,2:end) / m + lambda / m * Theta2(:,2:end);
+% size(Theta2_grad) = [num_labels, hidden_layer_size+1]
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+for i = 1:m
+    Theta1_grad = delta2(:,i) * X_bias(i,:) + Theta1_grad;
+endfor
+Theta1_grad(:,1) = Theta1_grad(:,1) / m;
+Theta1_grad(:,2:end) = Theta1_grad(:,2:end) / m + lambda / m * Theta1(:,2:end);
+% size(Theta1_grad) = [hidden_layer_size, input_layer_size+1]
 
 % -------------------------------------------------------------
 
